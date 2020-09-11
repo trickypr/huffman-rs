@@ -1,9 +1,25 @@
+use ron::ser::to_string;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::{collections::BTreeMap, fs, fs::File, io::prelude::*, io::Error, iter::FromIterator};
 
 #[derive(Debug)]
 enum PairType {
     Char(char),
     Pair((Pair, Pair)),
+}
+
+impl Serialize for PairType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match &*self {
+            PairType::Char(c) => serializer.serialize_newtype_variant("PairType", 0, "Char", &c),
+            PairType::Pair(pair) => {
+                serializer.serialize_newtype_variant("PairType", 1, "Pair", &pair)
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -28,6 +44,15 @@ impl Pair {
             contents: Box::new(PairType::Char(c)),
             child_chars: vec![c],
         }
+    }
+
+    fn to_deflated_string(&self) -> String {
+        let mut compressed = String::new();
+
+        compressed += &to_string(self).unwrap();
+        compressed += &String::from_utf8(vec![0x00]).unwrap();
+
+        compressed
     }
 
     fn children_to_char_vec(&self) -> Vec<char> {
@@ -72,6 +97,21 @@ impl Pair {
         }
 
         bin
+    }
+}
+
+impl Serialize for Pair {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("pair", 3)?;
+
+        state.serialize_field("value", &self.value)?;
+        state.serialize_field("contents", &self.contents)?;
+        state.serialize_field("child_chars", &self.child_chars)?;
+
+        state.end()
     }
 }
 
@@ -153,10 +193,11 @@ fn main() -> Result<(), Error> {
 
     compressed = bits_to_bytes(compressed);
 
-    let mut new_file = File::create("test.hmc")?;
+    let mut new_file = File::create("test.z")?;
+    new_file.write_all(tree.to_deflated_string().as_bytes())?;
     new_file.write_all(&compressed)?;
 
-    println!("{:?}", compressed);
+    // println!("{:?}", compressed);
 
     Ok(())
 }
