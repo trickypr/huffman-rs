@@ -1,4 +1,4 @@
-use crate::pair::Pair;
+use crate::lib::compression::Pair;
 
 pub fn decode(mut compressed: Vec<u8>) -> String {
     let mut current_char = compressed.remove(0);

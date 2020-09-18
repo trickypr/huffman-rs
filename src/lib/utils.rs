@@ -40,7 +40,7 @@ pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
     let mut final_bin = Vec::new();
 
     for byte in bytes {
-        let bin = format!("{:b}", byte);
+        let bin = format!("{:08b}", byte);
 
         for bit in bin.chars() {
             final_bin.push(bit == '1');
