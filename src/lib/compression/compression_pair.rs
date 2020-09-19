@@ -1,16 +1,13 @@
-use serde::{Deserialize, Serialize};
+use super::super::decompression::DeflatedPair;
 
-use crate::lib::utils::{bytes_to_bits, remove_or_false};
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct Pair {
-    pub value: u32,
+    pub value: usize,
     pub contents: Box<PairType>,
     pub child_chars: Vec<char>,
 }
 
 impl Pair {
-    pub fn new(value: u32, contents: PairType, child_chars: Vec<char>) -> Self {
+    pub fn new(value: usize, contents: PairType, child_chars: Vec<char>) -> Self {
         Pair {
             value,
             contents: Box::new(contents),
@@ -18,7 +15,7 @@ impl Pair {
         }
     }
 
-    pub fn from_char(c: char, v: u32) -> Self {
+    pub fn from_char(c: char, v: usize) -> Self {
         Pair {
             value: v,
             contents: Box::new(PairType::Char(c)),
@@ -26,13 +23,8 @@ impl Pair {
         }
     }
 
-    pub fn to_deflated_string(&self) -> String {
-        let mut compressed = String::new();
-
-        compressed += &serde_json::to_string(self).unwrap();
-        compressed += &String::from_utf8(vec![0x00]).unwrap();
-
-        compressed
+    pub fn deflate(&self) -> DeflatedPair {
+        DeflatedPair::from_pair(self)
     }
 
     pub fn children_to_char_vec(&self) -> Vec<char> {
@@ -108,35 +100,8 @@ impl Pair {
 
         bin
     }
-
-    pub fn decode_chars(&self, chars: &[u8]) -> String {
-        let mut final_string = String::new();
-
-        let mut bin = bytes_to_bits(chars);
-
-        while bin.len() != 0 {
-            final_string.push(self.decode_char(&mut bin));
-        }
-
-        final_string
-    }
-
-    pub fn decode_char(&self, c: &mut Vec<bool>) -> char {
-        return match &*self.contents {
-            PairType::Char(c) => c.clone(),
-            PairType::Pair((a, b)) => {
-                let bit = remove_or_false(c, 0);
-
-                return match bit {
-                    true => a.decode_char(c),
-                    false => b.decode_char(c),
-                };
-            }
-        };
-    }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
 pub enum PairType {
     Char(char),
     Pair((Pair, Pair)),

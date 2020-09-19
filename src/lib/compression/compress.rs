@@ -1,10 +1,24 @@
-use std::{collections::BTreeMap, fs, fs::File, io::prelude::*, io::Error, iter::FromIterator};
+use std::{collections::BTreeMap, iter::FromIterator};
 
-use crate::pair::{Pair, PairType};
+use super::{super::utils::bits_to_bytes, Pair, PairType};
+
+pub fn compress(text: &String) -> (Pair, Vec<u8>) {
+    let tree = generate_tree(text);
+
+    let mut tree_bytes = Vec::from(tree.deflate().to_string().as_bytes());
+    let mut compressed =
+        bits_to_bytes(tree.encode_chars(&Vec::from_iter(text.chars().into_iter())));
+
+    let mut final_bytes = Vec::new();
+
+    final_bytes.append(&mut tree_bytes);
+    final_bytes.push(0);
+    final_bytes.append(&mut compressed);
+
+    (tree, final_bytes)
+}
 
 pub fn generate_tree(text: &String) -> Pair {
-    let raw = text.clone();
-
     // Check how common each character is in the file
     let mut chars = BTreeMap::new();
     text.chars().into_iter().for_each(|character| {
